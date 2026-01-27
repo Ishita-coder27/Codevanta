@@ -4,8 +4,6 @@ import * as awarenessProtocol from 'y-protocols/awareness';
 import * as syncProtocol from 'y-protocols/sync';
 import { encoding, decoding } from 'lib0';
 
-const PORT = 1234;
-
 const wsReadyStateOpen = 1;
 const docs = new Map();
 const docConnections = new Map(); // Track connections per document
@@ -126,17 +124,26 @@ const setupWSConnection = (conn, req, docName) => {
   });
 };
 
-// Create WebSocket server for Y.js synchronization
-const wss = new WebSocketServer({ port: PORT });
+// Attach WebSocket server to existing HTTP server
+export const startYjsServer = (httpServer) => {
+  const wss = new WebSocketServer({ noServer: true });
 
-wss.on('connection', (ws, req) => {
-  const url = new URL(req.url, 'http://localhost');
-  const docName = url.pathname.slice(1) || 'default';
-  setupWSConnection(ws, req, docName);
-});
+  // Handle WebSocket upgrade requests
+  httpServer.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    
+    // Only handle Y.js WebSocket connections (paths starting with /yjs/)
+    if (url.pathname.startsWith('/yjs/')) {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        const docName = url.pathname.slice(5) || 'default'; // Remove '/yjs/' prefix
+        setupWSConnection(ws, request, docName);
+      });
+    } else {
+      // Not a Y.js connection, let other handlers deal with it
+      socket.destroy();
+    }
+  });
 
-export const startYjsServer = () => {
-  console.log(`Y.js WebSocket server running on ws://localhost:${PORT}`);
+  console.log('Y.js WebSocket server integrated with Express on /yjs/ path');
+  return wss;
 };
-
-export default wss;

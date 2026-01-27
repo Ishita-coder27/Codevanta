@@ -49,10 +49,10 @@ app.use(express.static(path.join(__dirname, "../frontend/dist")));
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(ENV.PORT, () => console.log("Server is running on port:", ENV.PORT));
+    const httpServer = app.listen(ENV.PORT, () => console.log("Server is running on port:", ENV.PORT));
     
-    // Start Y.js WebSocket server for collaborative editing
-    startYjsServer();
+    // Start Y.js WebSocket server integrated with Express
+    startYjsServer(httpServer);
   } catch (error) {
     console.error(" Error starting the server", error);
   }
