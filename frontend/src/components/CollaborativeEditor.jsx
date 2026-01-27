@@ -55,11 +55,21 @@ const CollaborativeEditor = ({
       }
 
       // Connect to WebSocket server
+      // Use environment variable for production, fallback to localhost for development
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const isDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      const wsUrl = isDevelopment 
-        ? `${wsProtocol}//localhost:1234`
-        : `${wsProtocol}//${window.location.hostname}:1234`;
+      
+      let wsUrl;
+      if (import.meta.env.VITE_YJS_WS_URL) {
+        // Use explicit WebSocket URL from environment variable
+        wsUrl = `${import.meta.env.VITE_YJS_WS_URL}/yjs`;
+      } else if (isDevelopment) {
+        // Development: connect to localhost
+        wsUrl = `${wsProtocol}//localhost:3000/yjs`;
+      } else {
+        // Production fallback: use current hostname
+        wsUrl = `${wsProtocol}//${window.location.hostname}/yjs`;
+      }
       
       const provider = new WebsocketProvider(wsUrl, `session-${sessionId}`, ydoc);
       providerRef.current = provider;
