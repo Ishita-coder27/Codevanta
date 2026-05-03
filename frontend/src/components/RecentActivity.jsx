@@ -47,7 +47,7 @@ function RecentActivity() {
         </div>
         <button
           onClick={() => navigate("/problems")}
-          className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+          className="mt-4 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
         >
           Start Solving
         </button>
