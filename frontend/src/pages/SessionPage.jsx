@@ -2,7 +2,6 @@ import { useUser } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useEndSession, useJoinSession, useSessionById } from "../hooks/useSessions";
-import { executeCode } from "../lib/piston";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Loader2Icon, LogOutIcon, PhoneOffIcon, ShareIcon, ArrowLeftIcon } from "lucide-react";
 import CodeEditorPanel from "../components/CodeEditorPanel";
@@ -12,7 +11,6 @@ import ProblemDescription from "../components/ProblemDescription";
 import PageHeader from "../components/PageHeader";
 import axiosInstance from "../lib/axios";
 import SubmissionsPanel from "../components/SubmissionsPanel";
-import confetti from "canvas-confetti";
 import toast from "react-hot-toast";
 
 import useStreamClient from "../hooks/useStreamClient";
@@ -25,8 +23,6 @@ function SessionPage() {
   const { id } = useParams();
   const { user } = useUser();
   const [output, setOutput] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [problemData, setProblemData] = useState(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -150,43 +146,6 @@ function SessionPage() {
     setOutput(null);
   };
 
-  const handleRunCode = async () => {
-    if (!code.trim()) {
-      setOutput({ error: "Please write some code first!" });
-      return;
-    }
-
-    if (!problemData) {
-      setOutput({ error: "Problem data not loaded yet!" });
-      return;
-    }
-
-    setIsRunning(true);
-    setOutput(null);
-
-    try {
-      // Use backend API for proper code execution (like Problems page)
-      const response = await axiosInstance.post(`/problems/${problemData.slug}/run`, {
-        code,
-        language: selectedLanguage,
-      });
-
-      const result = response.data;
-      setOutput(result);
-
-      if (result.status === "Accepted") {
-        // Optional: Show success toast
-      }
-    } catch (error) {
-      console.error("Error running code:", error);
-      setOutput({
-        error: error.response?.data?.message || "Failed to run code",
-        output: ""
-      });
-    } finally {
-      setIsRunning(false);
-    }
-  };
 
   const handleStartRecording = async () => {
     try {
@@ -239,53 +198,6 @@ function SessionPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!code.trim()) {
-      setOutput({ error: "Please write some code first!" });
-      return;
-    }
-
-    if (!problemData) {
-      setOutput({ error: "Problem data not loaded yet!" });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setOutput(null);
-
-    try {
-      const response = await axiosInstance.post(`/problems/${problemData.slug}/submit`, {
-        code,
-        language: selectedLanguage,
-      });
-
-      const result = response.data;
-      setOutput(result);
-
-      // Show feedback
-      if (result.status === "Accepted") {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-        toast.success("🎉 Accepted! All test cases passed!");
-      } else {
-        toast.error(`Submission failed: ${result.status}`);
-      }
-
-      // Refresh submissions
-      fetchSubmissions(problemData.slug);
-    } catch (error) {
-      console.error("Error submitting code:", error);
-      setOutput({
-        error: error.response?.data?.message || "Failed to submit code",
-        output: ""
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleEndSessionClick = () => {
     setShowEndConfirm(true);
@@ -428,12 +340,8 @@ function SessionPage() {
                     <CodeEditorPanel
                       selectedLanguage={selectedLanguage}
                       code={code}
-                      isRunning={isRunning}
-                      isSubmitting={isSubmitting}
                       onLanguageChange={handleLanguageChange}
                       onCodeChange={(value) => setCode(value)}
-                      onRunCode={handleRunCode}
-                      onSubmitCode={handleSubmit}
                       sessionId={id}
                       userId={user?.id}
                       userName={user?.fullName || user?.firstName || "Anonymous"}

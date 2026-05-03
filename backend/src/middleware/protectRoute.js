@@ -1,5 +1,6 @@
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 import User from "../models/User.js";
+import { upsertStreamUser } from "../lib/stream.js";
 
 export const protectRoute = async (req, res, next) => {
   try {
@@ -12,10 +13,34 @@ export const protectRoute = async (req, res, next) => {
     }
 
     // find user in db by clerk ID
-    const user = await User.findOne({ clerkId });
+    let user = await User.findOne({ clerkId });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      try {
+        const clerkUser = await clerkClient.users.getUser(clerkId);
+        const primaryEmail = clerkUser.emailAddresses?.[0]?.emailAddress || "";
+        const fullName = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim();
+
+        if (!primaryEmail || !fullName) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        user = await User.create({
+          clerkId,
+          email: primaryEmail,
+          name: fullName,
+          profileImage: clerkUser.imageUrl || "",
+        });
+
+        await upsertStreamUser({
+          id: user.clerkId.toString(),
+          name: user.name,
+          image: user.profileImage,
+        });
+      } catch (error) {
+        console.error("Error syncing user in protectRoute", error);
+        return res.status(404).json({ message: "User not found" });
+      }
     }
 
     // attach user to req

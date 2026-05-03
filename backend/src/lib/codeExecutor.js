@@ -1,165 +1,134 @@
-/**
- * LeetCode-Style Code Executor
- * Executes wrapped user code using Piston API
- * 
- * FLOW:
- * 1. Receive user's solution code (function only)
- * 2. Generate complete executable code with test cases
- * 3. Send to Piston API for compilation & execution
- * 4. Parse output and return verdict
- */
-
-import axios from "axios";
 import { generateCodeWrapper, parseExecutionOutput } from "./codeWrappers.js";
+
+// Piston API is a service for code execution
 
 const PISTON_API = "https://emkc.org/api/v2/piston";
 
-// Piston API language mappings
-const LANGUAGE_CONFIG = {
-  cpp: { language: "c++", version: "10.2.0", extension: "cpp" },
-  c: { language: "c", version: "10.2.0", extension: "c" },
-  python: { language: "python", version: "3.10.0", extension: "py" },
-  javascript: { language: "javascript", version: "18.15.0", extension: "js" },
-  java: { language: "java", version: "15.0.2", extension: "java" },
+const LANGUAGE_VERSIONS = {
+  javascript: { language: "javascript", version: "18.15.0" },
+  python: { language: "python", version: "3.10.0" },
+  java: { language: "java", version: "15.0.2" },
+  cpp: { language: "cpp", version: "10.2.0" },
+  c: { language: "c", version: "10.2.0" },
 };
 
 /**
- * Execute user code with LeetCode-style wrapper
- * 
- * @param {string} language - Programming language (cpp, c, python, java, javascript)
- * @param {string} userCode - User's solution code (function/class only)
- * @param {object} functionSignature - Function metadata from problem
- * @param {array} testCases - Array of test cases [{input, expectedOutput, hidden}]
- * @returns {Promise<object>} Execution result with verdict
+ * @param {string} language - programming language
+ * @param {string} code - source code to executed
+ * @returns {Promise<{success:boolean, output?:string, error?: string}>}
  */
-export async function executeWithWrapper(language, userCode, functionSignature, testCases) {
-  const config = LANGUAGE_CONFIG[language];
-
-  if (!config) {
-    throw new Error(`Unsupported language: ${language}`);
-  }
-
+export async function executeCode(language, code) {
   try {
-    // Step 1: Generate complete executable code
-    const wrappedCode = generateCodeWrapper(language, userCode, functionSignature, testCases);
+    const languageConfig = LANGUAGE_VERSIONS[language];
 
-    // Determine filename based on language
-    let filename;
-    if (language === "java") {
-      filename = "Main.java"; // Java requires specific class name
-    } else {
-      filename = `main.${config.extension}`;
+    if (!languageConfig) {
+      return {
+        success: false,
+        error: `Unsupported language: ${language}`,
+      };
     }
 
-    // Step 2: Execute via Piston API
-    const response = await axios.post(
-      `${PISTON_API}/execute`,
-      {
-        language: config.language,
-        version: config.version,
+    const response = await fetch(`${PISTON_API}/execute`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        language: languageConfig.language,
+        version: languageConfig.version,
         files: [
           {
-            name: filename,
-            content: wrappedCode,
+            name: `main.${getFileExtension(language)}`,
+            content: code,
           },
         ],
-        stdin: "", // We inject test cases in code, not via stdin
-        compile_timeout: 10000, // 10 seconds
-        run_timeout: 5000, // 5 seconds (TLE check)
-        compile_memory_limit: -1,
-        run_memory_limit: -1,
-      },
-      {
-        timeout: 15000, // HTTP timeout
-      }
-    );
+      }),
+    });
 
-    const result = response.data;
-
-    // Step 3: Check for compilation errors
-    if (result.compile && result.compile.code !== 0) {
+    if (!response.ok) {
       return {
-        status: "Compilation Error",
-        passedCount: 0,
-        totalCount: testCases.length,
-        failedTestIndex: 0,
-        expectedOutput: null,
-        actualOutput: null,
-        errorMessage: result.compile.stderr || result.compile.output || "Compilation failed",
-        testCaseResults: [],
+        success: false,
+        error: `HTTP error! status: ${response.status}`,
       };
     }
 
-    // Step 4: Check runtime errors
-    const stdout = result.run?.stdout || "";
-    const stderr = result.run?.stderr || "";
-    const exitCode = result.run?.code || 0;
+    const data = await response.json();
 
-    if (exitCode !== 0 || stderr) {
+    const output = data.run.output || "";
+    const stderr = data.run.stderr || "";
+
+    if (stderr) {
       return {
-        status: "Runtime Error",
-        passedCount: 0,
-        totalCount: testCases.length,
-        failedTestIndex: 0,
-        expectedOutput: null,
-        actualOutput: null,
-        errorMessage: stderr || `Process exited with code ${exitCode}`,
-        testCaseResults: [],
+        success: false,
+        output: output,
+        error: stderr,
       };
     }
 
-    // Step 5: Parse output and determine verdict
-    const parsed = parseExecutionOutput(stdout, testCases);
-
-    // Set total count if not already set
-    if (parsed.totalCount === -1) {
-      parsed.totalCount = testCases.length;
-    }
-
-    return parsed;
+    return {
+      success: true,
+      output: output || "No output",
+    };
   } catch (error) {
-    // Handle timeouts and network errors
-    if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-      return {
-        status: "Time Limit Exceeded",
-        passedCount: 0,
-        totalCount: testCases.length,
-        failedTestIndex: 0,
-        expectedOutput: null,
-        actualOutput: null,
-        errorMessage: "Code execution took too long (5 second limit)",
-        testCaseResults: [],
-      };
-    }
-
-    // Handle Piston API errors
-    if (error.response) {
-      return {
-        status: "Runtime Error",
-        passedCount: 0,
-        totalCount: testCases.length,
-        failedTestIndex: 0,
-        expectedOutput: null,
-        actualOutput: null,
-        errorMessage: error.response.data?.message || "Execution service error",
-        testCaseResults: [],
-      };
-    }
-
-    // Generic error
-    throw error;
+    return {
+      success: false,
+      error: `Failed to execute code: ${error.message}`,
+    };
   }
 }
 
-/**
- * Get available Piston runtimes (for debugging/admin)
- */
-export async function getAvailableRuntimes() {
+export async function executeWithWrapper(
+  language,
+  userCode,
+  functionSignature,
+  testCases
+) {
   try {
-    const response = await axios.get(`${PISTON_API}/runtimes`);
-    return response.data;
+    const wrappedCode = generateCodeWrapper(
+      language,
+      userCode,
+      functionSignature,
+      testCases
+    );
+
+    const executionResult = await executeCode(language, wrappedCode);
+
+    if (!executionResult.success) {
+      return {
+        status: "Runtime Error",
+        passedCount: 0,
+        totalCount: testCases ? testCases.length : 0,
+        failedTestIndex: 0,
+        expectedOutput: null,
+        actualOutput: null,
+        errorMessage: executionResult.error || "Failed to execute code",
+        testCaseResults: [],
+      };
+    }
+
+    return parseExecutionOutput(executionResult.output || "", testCases);
   } catch (error) {
-    console.error("Error fetching runtimes:", error);
-    return [];
+    return {
+      status: "Runtime Error",
+      passedCount: 0,
+      totalCount: testCases ? testCases.length : 0,
+      failedTestIndex: 0,
+      expectedOutput: null,
+      actualOutput: null,
+      errorMessage: error.message || "Failed to execute code",
+      testCaseResults: [],
+    };
   }
+}
+
+function getFileExtension(language) {
+  const extensions = {
+    javascript: "js",
+    python: "py",
+    java: "java",
+    cpp: "cpp",
+    c: "c",
+  };
+
+  return extensions[language] || "txt";
 }

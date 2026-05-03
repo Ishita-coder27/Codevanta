@@ -3,12 +3,9 @@ import { useNavigate, useParams } from "react-router";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
-import confetti from "canvas-confetti";
 import {
   Loader2,
   ArrowLeft,
-  Play,
-  Upload,
   Check,
   X,
   Clock,
@@ -32,8 +29,6 @@ function ProblemPage() {
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState("");
   const [output, setOutput] = useState(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
   const [submissions, setSubmissions] = useState([]);
   const [expandedExample, setExpandedExample] = useState(-1); // -1 means all collapsed
@@ -81,82 +76,6 @@ function ProblemPage() {
       setSubmissions(response.data.submissions || []);
     } catch (error) {
       console.log("Not authenticated or no submissions");
-    }
-  };
-
-  const handleRunCode = async () => {
-    if (!code.trim()) {
-      toast.error("Please write some code first!");
-      return;
-    }
-
-    try {
-      setIsRunning(true);
-      setOutput(null);
-
-      const response = await axiosInstance.post(`/problems/${slug}/run`, {
-        code,
-        language: selectedLanguage,
-      });
-
-      const result = response.data;
-      setOutput(result);
-
-      if (result.status === "Accepted") {
-        toast.success(`All ${result.passedCount} test cases passed!`);
-      } else {
-        toast.error(`Test failed: ${result.status}`);
-      }
-    } catch (error) {
-      console.error("Error running code:", error);
-      toast.error(error.response?.data?.message || "Failed to run code");
-      setOutput({
-        status: "Error",
-        errorMessage: error.response?.data?.message || "Failed to run code",
-      });
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!code.trim()) {
-      toast.error("Please write some code first!");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setOutput(null);
-
-      const response = await axiosInstance.post(`/problems/${slug}/submit`, {
-        code,
-        language: selectedLanguage,
-      });
-
-      const result = response.data;
-      setOutput(result);
-
-      if (result.status === "Accepted") {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-        });
-        toast.success("🎉 Accepted! All test cases passed!");
-        fetchSubmissions(); // Refresh submissions
-      } else {
-        toast.error(`Submission failed: ${result.status}`);
-      }
-    } catch (error) {
-      console.error("Error submitting code:", error);
-      toast.error(error.response?.data?.message || "Failed to submit code");
-      setOutput({
-        status: "Error",
-        errorMessage: error.response?.data?.message || "Failed to submit code",
-      });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -223,35 +142,6 @@ function ProblemPage() {
           >
             <ArrowLeft className="size-4" />
             Problem List
-          </button>
-        </div>
-
-        {/* Center - Run & Submit */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleRunCode}
-            disabled={isRunning || isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 rounded-lg transition-colors shadow-sm"
-          >
-            {isRunning ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Play className="size-4" />
-            )}
-            Run
-          </button>
-
-          <button
-            onClick={handleSubmit}
-            disabled={isRunning || isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 rounded-lg transition-colors shadow-sm"
-          >
-            {isSubmitting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-            Submit
           </button>
         </div>
 
@@ -462,7 +352,7 @@ function ProblemPage() {
 
                     {!output && (
                       <div className="text-sm text-slate-500">
-                        Run your code or submit to see results here
+                        Code execution is currently disabled.
                       </div>
                     )}
 

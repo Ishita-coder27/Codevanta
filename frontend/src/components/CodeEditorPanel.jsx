@@ -1,6 +1,6 @@
 import Editor from "@monaco-editor/react";
 import CollaborativeEditor from "./CollaborativeEditor";
-import { Loader2Icon, PlayIcon, SendIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 const LANGUAGE_CONFIG = {
   javascript: { name: "JavaScript", monacoLang: "javascript" },
@@ -13,12 +13,8 @@ const LANGUAGE_CONFIG = {
 function CodeEditorPanel({
   selectedLanguage,
   code,
-  isRunning,
-  isSubmitting,
   onLanguageChange,
   onCodeChange,
-  onRunCode,
-  onSubmitCode,
   sessionId,
   userId,
   userName,
@@ -66,42 +62,6 @@ function CodeEditorPanel({
               <>
                 <EyeOffIcon className="size-3" />
                 Solo
-              </>
-            )}
-          </button>
-
-          <button
-            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-600 text-white hover:bg-slate-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isRunning || isSubmitting}
-            onClick={onRunCode}
-          >
-            {isRunning ? (
-              <>
-                <Loader2Icon className="size-3 animate-spin" />
-                Running...
-              </>
-            ) : (
-              <>
-                <PlayIcon className="size-3 fill-current" />
-                Run
-              </>
-            )}
-          </button>
-
-          <button
-            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-            disabled={isRunning || isSubmitting}
-            onClick={onSubmitCode}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2Icon className="size-3 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <SendIcon className="size-3" />
-                Submit
               </>
             )}
           </button>

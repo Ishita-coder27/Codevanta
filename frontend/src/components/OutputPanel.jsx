@@ -120,7 +120,7 @@ function OutputPanel({ output, testResults, isRunning }) {
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400">
-            <p className="text-sm">Run your code to see output here</p>
+            <p className="text-sm">Code execution is currently disabled.</p>
           </div>
         )}
       </div>

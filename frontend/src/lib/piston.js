@@ -3,13 +3,11 @@
 const PISTON_API = "https://emkc.org/api/v2/piston";
 
 const LANGUAGE_VERSIONS = {
-  javascript: { language: "javascript", version: "18.15.0" },
-  python: { language: "python", version: "3.10.0" },
+  javascript: { language: "javascript", version: "20.11.1" },
+  python: { language: "python", version: "3.12.0" },
   java: { language: "java", version: "15.0.2" },
-
-  // NEW
   c: { language: "c", version: "10.2.0" },
-  cpp: { language: "cpp", version: "10.2.0" },
+  cpp: { language: "c++", version: "10.2.0" },
 };
 
 /**
